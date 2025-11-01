@@ -142,4 +142,4 @@ require (
 )
 
 // Replace the original llama-stack-k8s-operator with the Open Data Hub fork
-replace github.com/llamastack/llama-stack-k8s-operator => github.com/opendatahub-io/llama-stack-k8s-operator v0.0.0-20250918140507-87021371d8f4
+replace github.com/llamastack/llama-stack-k8s-operator => github.com/opendatahub-io/llama-stack-k8s-operator v0.0.0-20251031174826-226e911cca9b
