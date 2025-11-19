@@ -20,9 +20,15 @@ const description =
 
 const ModelTraining = (): React.ReactElement => {
   const navigate = useNavigate();
-  const { trainJobs, project, preferredProject, projects } =
+  const { trainJobs, rayJobs, project, preferredProject, projects } =
     React.useContext(ModelTrainingContext);
   const [trainJobData, trainJobLoaded, trainJobLoadError] = trainJobs;
+  const [rayJobData, rayJobLoaded, rayJobLoadError] = rayJobs;
+
+  // Combine all jobs
+  const allJobs = [...trainJobData, ...rayJobData];
+  const allJobsLoaded = trainJobLoaded && rayJobLoaded;
+  const allJobsLoadError = trainJobLoadError || rayJobLoadError;
 
   const emptyState = (
     <EmptyState
@@ -40,12 +46,12 @@ const ModelTraining = (): React.ReactElement => {
 
   return (
     <ApplicationsPage
-      empty={trainJobData.length === 0}
+      empty={allJobs.length === 0}
       emptyStatePage={emptyState}
       title={<TitleWithIcon title={title} objectType={ProjectObjectType.modelCustomization} />}
       description={description}
-      loadError={trainJobLoadError}
-      loaded={trainJobLoaded}
+      loadError={allJobsLoadError}
+      loaded={allJobsLoaded}
       headerContent={
         <ModelTrainingProjectSelector getRedirectPath={(ns: string) => `/modelTraining/${ns}`} />
       }
@@ -65,7 +71,7 @@ const ModelTraining = (): React.ReactElement => {
         )
       }
     >
-      <TrainingJobListView trainingJobs={trainJobData as any} />
+      <TrainingJobListView trainingJobs={allJobs as any} />
     </ApplicationsPage>
   );
 };

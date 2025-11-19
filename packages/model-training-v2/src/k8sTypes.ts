@@ -221,3 +221,41 @@ export type TrainJobKind = K8sResource & {
     };
   };
 };
+
+// RayJob types based on ray.io/v1
+export type RayJobKind = K8sResourceCommon & {
+  metadata: {
+    annotations?: Partial<{
+      'opendatahub.io/display-name': string;
+    }>;
+    name: string;
+    namespace: string;
+    labels?: {
+      'kueue.x-k8s.io/queue-name'?: string;
+      [key: string]: string | undefined;
+    };
+    uid: string;
+  };
+  spec: {
+    rayClusterSpec?: {
+      headGroupSpec?: any;
+      workerGroupSpecs?: Array<{
+        replicas?: number;
+        groupName?: string;
+        [key: string]: any;
+      }>;
+    };
+    entrypoint?: string;
+    runtimeEnv?: string;
+    shutdownAfterJobFinishes?: boolean;
+    ttlSecondsAfterFinished?: number;
+    suspend?: boolean;
+  };
+  status?: {
+    jobStatus?: 'NEW' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'STOPPED';
+    jobDeploymentStatus?: 'Running' | 'Complete' | 'Failed' | 'Suspended';
+    startTime?: string;
+    endTime?: string;
+    message?: string;
+  };
+};

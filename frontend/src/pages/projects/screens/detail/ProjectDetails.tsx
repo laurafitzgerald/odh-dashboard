@@ -25,6 +25,7 @@ import ConnectionsList from './connections/ConnectionsList';
 import PipelinesSection from './pipelines/PipelinesSection';
 import ProjectActions from './ProjectActions';
 import RagChatbot from './chatbot/RagChatbot';
+import RayClustersList from './rayClusters/RayClustersList';
 
 import './ProjectDetails.scss';
 
@@ -121,6 +122,11 @@ const ProjectDetails: React.FC = () => {
               id: ProjectSectionID.CONNECTIONS,
               title: 'Connections',
               component: <ConnectionsList />,
+            },
+            {
+              id: ProjectSectionID.RAY_CLUSTERS,
+              title: 'Ray clusters',
+              component: <RayClustersList />,
             },
             ...(projectSharingEnabled && allowCreate
               ? [

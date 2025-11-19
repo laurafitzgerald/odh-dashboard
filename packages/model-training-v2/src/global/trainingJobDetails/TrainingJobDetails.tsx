@@ -10,11 +10,12 @@ import { TrainingJob } from '../trainingJobList/utils';
 
 const TrainingJobDetails: React.FC = () => {
   const { namespace, jobName } = useParams<{ namespace: string; jobName: string }>();
-  const { pytorchJobs, trainJobs } = useModelTrainingContext();
+  const { pytorchJobs, trainJobs, rayJobs } = useModelTrainingContext();
   const [pytorchJobData, pytorchJobLoaded, pytorchJobLoadError] = pytorchJobs;
   const [trainJobData, trainJobLoaded, trainJobLoadError] = trainJobs;
+  const [rayJobData, rayJobLoaded, rayJobLoadError] = rayJobs;
 
-  // Find the specific job from both PyTorchJobs and TrainJobs
+  // Find the specific job from PyTorchJobs, TrainJobs, and RayJobs
   const job: TrainingJob | undefined = React.useMemo(() => {
     // First check PyTorchJobs
     const pytorchJob = pytorchJobData.find((j: PyTorchJobKind) => j.metadata.name === jobName);
@@ -22,11 +23,15 @@ const TrainingJobDetails: React.FC = () => {
     
     // Then check TrainJobs
     const trainJob = trainJobData.find((j: TrainJobKind) => j.metadata.name === jobName);
-    return trainJob;
-  }, [pytorchJobData, trainJobData, jobName]);
+    if (trainJob) return trainJob;
+    
+    // Finally check RayJobs
+    const rayJob = rayJobData.find((j) => j.metadata.name === jobName);
+    return rayJob;
+  }, [pytorchJobData, trainJobData, rayJobData, jobName]);
 
-  const allJobsLoaded = pytorchJobLoaded && trainJobLoaded;
-  const loadError = pytorchJobLoadError || trainJobLoadError;
+  const allJobsLoaded = pytorchJobLoaded && trainJobLoaded && rayJobLoaded;
+  const loadError = pytorchJobLoadError || trainJobLoadError || rayJobLoadError;
 
   if (!allJobsLoaded) {
     return (

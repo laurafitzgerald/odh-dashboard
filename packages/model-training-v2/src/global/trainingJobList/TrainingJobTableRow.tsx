@@ -13,10 +13,11 @@ import { getJobStatus, TrainingJob } from './utils';
 import TrainingJobClusterQueue from './TrainingJobClusterQueue';
 import HibernationToggleModal from './HibernationToggleModal';
 import TrainingJobStatus from './components/TrainingJobStatus';
+import TrainingJobType from './components/TrainingJobType';
 import TrainingProgressIcon from './components/TrainingProgressIcon';
 import WorkerNodesIcon from './components/WorkerNodesIcon';
 import { TrainingJobState } from '../../types';
-import { togglePyTorchJobHibernation, toggleTrainJobHibernation } from '../../api';
+import { togglePyTorchJobHibernation, toggleTrainJobHibernation, deleteRayJob } from '../../api';
 
 type TrainingJobTableRowProps = {
   job: TrainingJob;
@@ -42,16 +43,13 @@ const TrainingJobTableRow: React.FC<TrainingJobTableRowProps> = ({
   const isTerminalState = status === 'Succeeded' || status === 'Complete' || status === 'Failed';
 
   const handleHibernationToggle = async () => {
-    console.log('🎯 Resume/Suspend button clicked for:', job.kind, job.metadata.name);
     setIsToggling(true);
     try {
       let result;
       
       if (job.kind === 'PyTorchJob') {
-        console.log('📞 Calling togglePyTorchJobHibernation');
         result = await togglePyTorchJobHibernation(job as any);
       } else if (job.kind === 'TrainJob') {
-        console.log('📞 Calling toggleTrainJobHibernation');
         result = await toggleTrainJobHibernation(job as any);
       } else {
         console.warn(`Hibernation not supported for ${job.kind}`);
@@ -81,11 +79,23 @@ const TrainingJobTableRow: React.FC<TrainingJobTableRowProps> = ({
   const actions = React.useMemo(() => {
     const items = [];
 
-    // Add hibernation toggle action (for PyTorchJobs and TrainJobs in non-terminal states)
+    // Add hibernation toggle action
     if (!isTerminalState && (job.kind === 'PyTorchJob' || job.kind === 'TrainJob')) {
       items.push({
         title: isSuspended ? 'Resume' : 'Suspend',
         onClick: () => setHibernationModalOpen(true),
+      });
+    }
+    
+    // Add greyed-out suspend action for RayJobs (show for all states to communicate it's coming)
+    if (job.kind === 'RayJob') {
+      items.push({
+        title: isSuspended ? 'Resume' : 'Suspend',
+        onClick: () => {}, // No-op
+        isDisabled: true,
+        tooltipProps: {
+          content: 'Suspend/Resume for RayJobs is coming soon',
+        },
       });
     }
 
@@ -107,6 +117,10 @@ const TrainingJobTableRow: React.FC<TrainingJobTableRowProps> = ({
               {displayName}
             </Link>
           </ResourceNameTooltip>
+        </Td>
+
+        <Td dataLabel="Type">
+          <TrainingJobType job={job} />
         </Td>
 
         <Td dataLabel="Project">

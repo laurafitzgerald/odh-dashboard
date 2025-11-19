@@ -5,16 +5,23 @@ export const columns: SortableData<TrainingJob>[] = [
   {
     field: 'name',
     label: 'Name',
-    width: 20,
+    width: 15,
     sortable: (a: TrainingJob, b: TrainingJob): number =>
       (a.metadata.annotations?.['opendatahub.io/display-name'] || a.metadata.name).localeCompare(
         b.metadata.annotations?.['opendatahub.io/display-name'] || b.metadata.name,
       ),
   },
   {
+    field: 'type',
+    label: 'Type',
+    width: 10,
+    sortable: (a: TrainingJob, b: TrainingJob): number =>
+      (a.kind || '').localeCompare(b.kind || ''),
+  },
+  {
     field: 'project',
     label: 'Project',
-    width: 20,
+    width: 15,
     sortable: (a: TrainingJob, b: TrainingJob): number =>
       a.metadata.namespace.localeCompare(b.metadata.namespace),
   },
@@ -28,6 +35,9 @@ export const columns: SortableData<TrainingJob>[] = [
           return (job as any).spec.pytorchReplicaSpecs.Worker?.replicas || 0;
         } else if (job.kind === 'TrainJob') {
           return (job as any).spec.trainer?.numNodes || 1;
+        } else if (job.kind === 'RayJob') {
+          const workerGroups = (job as any).spec.rayClusterSpec?.workerGroupSpecs || [];
+          return workerGroups.reduce((sum: number, group: any) => sum + (group.replicas || 0), 0);
         }
         return 1;
       };

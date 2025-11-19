@@ -29,6 +29,7 @@ reinstall: build push undeploy deploy
 
 # BUILD - build image locally using s2i
 
+
 .PHONY: build
 build:
 	echo "Building ${IMAGE_REPOSITORY} from ${CONTAINER_DOCKERFILE}"

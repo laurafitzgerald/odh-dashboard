@@ -5,6 +5,7 @@ export const ProjectSectionTitles: ProjectSectionTitlesType = {
   [ProjectSectionID.WORKBENCHES]: 'Workbenches',
   [ProjectSectionID.CLUSTER_STORAGES]: 'Cluster storage',
   [ProjectSectionID.CONNECTIONS]: 'Connections',
+  [ProjectSectionID.RAY_CLUSTERS]: 'Ray clusters',
   [ProjectSectionID.MODEL_SERVER]: 'Models and model servers',
   [ProjectSectionID.PIPELINES]: 'Pipelines',
   [ProjectSectionID.PERMISSIONS]: 'Permissions',

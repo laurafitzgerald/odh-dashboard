@@ -15,7 +15,7 @@ const TrainingJobClusterQueue: React.FC<TrainingJobClusterQueueProps> = ({
 }) => {
   // If no local queue name is present, the job is not using Kueue
   if (!localQueueName) {
-    return <>Not used</>;
+    return <span style={{ color: 'var(--pf-v5-global--Color--200)' }}>N/A</span>;
   }
 
   const { clusterQueueName, loaded: clusterQueueLoaded } = useClusterQueueFromLocalQueue(

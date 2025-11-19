@@ -1,7 +1,7 @@
 import React from 'react';
 import DeleteModal from '@odh-dashboard/internal/pages/projects/components/DeleteModal';
 import { TrainingJob } from './utils';
-import { deletePyTorchJob, deleteTrainJob } from '../../api';
+import { deletePyTorchJob, deleteTrainJob, deleteRayJob } from '../../api';
 
 export type DeleteTrainingJobModalProps = {
   trainingJob: TrainingJob;
@@ -30,7 +30,19 @@ const DeleteTrainingJobModal: React.FC<DeleteTrainingJobModalProps> = ({
       submitButtonLabel="Delete training job"
       onDelete={() => {
         setIsDeleting(true);
-        const deleteFunction = trainingJob.kind === 'PyTorchJob' ? deletePyTorchJob : deleteTrainJob;
+        let deleteFunction;
+        if (trainingJob.kind === 'PyTorchJob') {
+          deleteFunction = deletePyTorchJob;
+        } else if (trainingJob.kind === 'TrainJob') {
+          deleteFunction = deleteTrainJob;
+        } else if (trainingJob.kind === 'RayJob') {
+          deleteFunction = deleteRayJob;
+        } else {
+          setError(new Error(`Unknown job type: ${trainingJob.kind}`));
+          setIsDeleting(false);
+          return;
+        }
+        
         deleteFunction(trainingJob.metadata.name, trainingJob.metadata.namespace)
           .then(() => {
             onBeforeClose(true);

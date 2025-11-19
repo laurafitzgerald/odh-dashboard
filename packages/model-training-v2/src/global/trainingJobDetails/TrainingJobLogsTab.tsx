@@ -9,21 +9,32 @@ import useFullscreenLogViewer from './useFullscreenLogViewer';
 import useTrainingJobDownloads from './useTrainingJobDownloads';
 import TrainingJobLogsTabStatus from './TrainingJobLogsTabStatus';
 import TrainingJobLogsToolbar from './TrainingJobLogsToolbar';
-import { PyTorchJobKind } from '../../k8sTypes';
-import { PyTorchJobState } from '../../types';
-import { getTrainingJobStatusSync } from '../trainingJobList/utils';
+import { TrainingJob, getJobStatus } from '../trainingJobList/utils';
 
 interface TrainingJobLogsTabProps {
-  job: PyTorchJobKind;
+  job: TrainingJob;
 }
 
 const TrainingJobLogsTab: React.FC<TrainingJobLogsTabProps> = ({ job }) => {
   const { namespace } = job.metadata;
   const { name: jobName } = job.metadata;
-  const podName = `${jobName}-master-0`;
+  
+  // Determine pod name based on job type
+  const podName = React.useMemo(() => {
+    if (job.kind === 'PyTorchJob') {
+      return `${jobName}-master-0`;
+    } else if (job.kind === 'TrainJob') {
+      return `${jobName}-0-0`; // TrainJob uses JobSet pattern
+    } else if (job.kind === 'RayJob') {
+      // For RayJobs, we'll search by label instead of name
+      // Will be handled in the pod container state hook
+      return jobName; // Pass job name, hook will find actual pod
+    }
+    return `${jobName}-master-0`; // fallback
+  }, [job.kind, jobName]);
 
-  const status = getTrainingJobStatusSync(job);
-  const isFailedJob = status === PyTorchJobState.FAILED;
+  const status = getJobStatus(job);
+  const isFailedJob = status === 'Failed';
 
   const {
     pod,
@@ -34,7 +45,7 @@ const TrainingJobLogsTab: React.FC<TrainingJobLogsTabProps> = ({ job }) => {
     selectedContainer,
     defaultContainerName,
     setSelectedContainer,
-  } = useTrainingJobPodContainerLogState(namespace, podName);
+  } = useTrainingJobPodContainerLogState(namespace, podName, job.kind, jobName);
 
   const [isPaused, setIsPaused] = React.useState(false);
   const [open, setOpen] = React.useState(false);
@@ -45,10 +56,13 @@ const TrainingJobLogsTab: React.FC<TrainingJobLogsTabProps> = ({ job }) => {
   const logViewerRef = React.useRef<{ scrollToBottom: () => void }>();
 
   const containerName = selectedContainer?.name ?? '';
+  
+  // Use the actual pod name from the discovered pod (important for RayJobs)
+  const actualPodName = pod?.metadata.name ?? podName;
 
   const [logs, logsLoaded, logsError] = useTrainingJobFetchLogs(
     namespace,
-    podName,
+    actualPodName,
     containerName,
     !isPaused,
     LOG_TAIL_LINES,
@@ -56,7 +70,7 @@ const TrainingJobLogsTab: React.FC<TrainingJobLogsTabProps> = ({ job }) => {
 
   const { downloading, downloadError, onDownload, onDownloadAll } = useTrainingJobDownloads({
     namespace,
-    podName,
+    podName: actualPodName,
     podContainers,
     selectedContainer,
     pod,

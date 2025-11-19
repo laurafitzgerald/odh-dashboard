@@ -8,12 +8,12 @@ import {
 } from './types';
 
 export const techPreviewFlags = {
-  disableHardwareProfiles: true,
+  disableHardwareProfiles: false,
   disableModelRegistry: true,
 } satisfies Partial<DashboardCommonConfig>;
 
 export const devTemporaryFeatureFlags = {
-  disableKueue: true,
+  disableKueue: false,
   disableFeatureStore: true,
   disableLlamaStackChatBot: true, // internal dev only
   disableProjectScoped: true,
@@ -66,7 +66,7 @@ export const advancedAIMLFlags = {
   disableModelRegistrySecureDB: false,
   disableFineTuning: true,
   disableLMEval: true,
-  disableModelTraining: true,
+  disableModelTraining: false,
 } satisfies Partial<DashboardCommonConfig>;
 
 // Combined feature flags object
@@ -173,11 +173,11 @@ export const SupportedAreasStateMap: SupportedAreasState = {
   },
   [SupportedArea.DISTRIBUTED_WORKLOADS]: {
     featureFlags: ['disableDistributedWorkloads'],
-    requiredComponents: [StackComponent.KUEUE],
+    // Note: Kueue check removed - works with RHBOK independently of DSC
   },
   [SupportedArea.KUEUE]: {
     featureFlags: ['disableKueue'],
-    requiredComponents: [StackComponent.KUEUE],
+    // Note: Kueue check removed - works with RHBOK independently of DSC
   },
   [SupportedArea.MODEL_CATALOG]: {
     featureFlags: ['disableModelCatalog'],
@@ -225,7 +225,7 @@ export const SupportedAreasStateMap: SupportedAreasState = {
   },
   [SupportedArea.MODEL_TRAINING]: {
     featureFlags: ['disableModelTraining'],
-    requiredComponents: [StackComponent.TRAINING_OPERATOR, StackComponent.KUEUE],
+    // Note: Component checks removed for flexibility with different operators
   },
 };
 

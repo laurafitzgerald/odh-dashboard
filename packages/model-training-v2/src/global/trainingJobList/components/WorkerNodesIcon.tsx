@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Tooltip, Flex, FlexItem } from '@patternfly/react-core';
-import { CubesIcon } from '@patternfly/react-icons';
+import { CubesIcon, CpuIcon } from '@patternfly/react-icons';
 import { TrainingJob } from '../utils';
 
 type WorkerNodesIconProps = {
@@ -20,12 +20,16 @@ const WorkerNodesIcon: React.FC<WorkerNodesIconProps> = ({ job }) => {
       const workerResources = pytorchJob.spec.pytorchReplicaSpecs.Worker?.template?.spec?.containers?.[0]?.resources;
       const masterResources = pytorchJob.spec.pytorchReplicaSpecs.Master?.template?.spec?.containers?.[0]?.resources;
       
+      const resources = workerResources || masterResources || {};
+      const hasGPU = (resources?.limits?.['nvidia.com/gpu'] || 0) > 0;
+      
       return {
         numNodes: totalNodes,
         numProcPerNode: 1, // PyTorchJob doesn't specify processes per node explicitly
         workerNodes: workerReplicas,
         masterNodes: masterReplicas,
-        resourcesPerNode: workerResources || masterResources || {},
+        resourcesPerNode: resources,
+        hasGPU,
         jobType: 'PyTorchJob'
       };
     } else if (job.kind === 'TrainJob') {
@@ -33,12 +37,36 @@ const WorkerNodesIcon: React.FC<WorkerNodesIconProps> = ({ job }) => {
       const numNodes = trainJob.spec.trainer?.numNodes || 1;
       const numProcPerNode = trainJob.spec.trainer?.numProcPerNode || 1;
       const resourcesPerNode = trainJob.spec.trainer?.resourcesPerNode || {};
+      const hasGPU = (resourcesPerNode?.limits?.['nvidia.com/gpu'] || 0) > 0;
       
       return {
         numNodes,
         numProcPerNode,
         resourcesPerNode,
+        hasGPU,
         jobType: 'TrainJob'
+      };
+    } else if (job.kind === 'RayJob') {
+      const rayJob = job as any;
+      const workerGroups = rayJob.spec.rayClusterSpec?.workerGroupSpecs || [];
+      const totalWorkers = workerGroups.reduce((sum: number, group: any) => sum + (group.replicas || 0), 0);
+      const headNode = 1; // RayJobs always have 1 head node
+      const totalNodes = totalWorkers + headNode;
+      
+      // Check if any worker group has GPU resources
+      const hasGPU = workerGroups.some((group: any) => {
+        const resources = group.template?.spec?.containers?.[0]?.resources;
+        return (resources?.limits?.['nvidia.com/gpu'] || 0) > 0;
+      });
+      
+      return {
+        numNodes: totalNodes,
+        numProcPerNode: 1,
+        workerNodes: totalWorkers,
+        headNodes: headNode,
+        resourcesPerNode: {},
+        hasGPU,
+        jobType: 'RayJob'
       };
     }
     
@@ -46,6 +74,7 @@ const WorkerNodesIcon: React.FC<WorkerNodesIconProps> = ({ job }) => {
       numNodes: 1,
       numProcPerNode: 1,
       resourcesPerNode: {},
+      hasGPU: false,
       jobType: 'Unknown'
     };
   }, [job]);
@@ -198,10 +227,18 @@ const WorkerNodesIcon: React.FC<WorkerNodesIconProps> = ({ job }) => {
   const displayValue = React.useMemo(() => {
     if (job.kind === 'PyTorchJob') {
       return (job as any).spec.pytorchReplicaSpecs.Worker?.replicas || 0;
-    } else {
+    } else if (job.kind === 'TrainJob') {
       return (job as any).spec.trainer?.numNodes || 1;
+    } else if (job.kind === 'RayJob') {
+      const workerGroups = (job as any).spec.rayClusterSpec?.workerGroupSpecs || [];
+      return workerGroups.reduce((sum: number, group: any) => sum + (group.replicas || 0), 0);
     }
+    return 0;
   }, [job]);
+
+  // Select icon based on whether nodes have GPUs
+  const NodeIcon = getWorkerNodeInfo.hasGPU ? CubesIcon : CpuIcon;
+  const iconColor = getWorkerNodeInfo.hasGPU ? '#9C27B0' : '#0066CC'; // Purple for GPU, blue for CPU
 
   return (
     <Tooltip content={tooltipContent} position="top" maxWidth="350px">
@@ -227,8 +264,8 @@ const WorkerNodesIcon: React.FC<WorkerNodesIconProps> = ({ job }) => {
           alignItems={{ default: 'alignItemsCenter' }}
           spaceItems={{ default: 'spaceItemsXs' }}
         >
-          <FlexItem>
-            <CubesIcon />
+          <FlexItem style={{ color: iconColor, display: 'flex', alignItems: 'center' }}>
+            <NodeIcon />
           </FlexItem>
           <FlexItem>{displayValue}</FlexItem>
         </Flex>

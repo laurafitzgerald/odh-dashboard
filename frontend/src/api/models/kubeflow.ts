@@ -20,3 +20,17 @@ export const TrainJobModel: K8sModelCommon = {
   kind: 'TrainJob',
   plural: 'trainjobs',
 };
+
+export const RayJobModel: K8sModelCommon = {
+  apiVersion: 'v1',
+  apiGroup: 'ray.io',
+  kind: 'RayJob',
+  plural: 'rayjobs',
+};
+
+export const RayClusterModel: K8sModelCommon = {
+  apiVersion: 'v1',
+  apiGroup: 'ray.io',
+  kind: 'RayCluster',
+  plural: 'rayclusters',
+};

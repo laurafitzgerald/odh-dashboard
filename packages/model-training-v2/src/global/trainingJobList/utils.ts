@@ -9,9 +9,9 @@ import {
   ClockIcon,
 } from '@patternfly/react-icons';
 import { LabelProps } from '@patternfly/react-core';
-import { PyTorchJobKind, TrainJobKind } from '../../k8sTypes';
-import { PyTorchJobState, TrainJobState, TrainingJobState, TrainingJobType } from '../../types';
-import { getWorkloadForPyTorchJob, getWorkloadForTrainJob } from '../../api';
+import { PyTorchJobKind, TrainJobKind, RayJobKind } from '../../k8sTypes';
+import { PyTorchJobState, TrainJobState, RayJobState, TrainingJobState, TrainingJobType } from '../../types';
+import { getWorkloadForPyTorchJob, getWorkloadForTrainJob, getWorkloadForRayJob } from '../../api';
 
 export const getStatusInfo = (
   status: TrainingJobState,
@@ -24,6 +24,7 @@ export const getStatusInfo = (
   switch (status) {
     case PyTorchJobState.SUCCEEDED:
     case TrainJobState.COMPLETE:
+    case RayJobState.SUCCEEDED:
       return {
         label: status === TrainJobState.COMPLETE ? 'Complete' : 'Succeeded',
         color: 'green',
@@ -31,6 +32,7 @@ export const getStatusInfo = (
       };
     case PyTorchJobState.FAILED:
     case TrainJobState.FAILED:
+    case RayJobState.FAILED:
       return {
         label: 'Failed',
         color: 'red',
@@ -38,10 +40,23 @@ export const getStatusInfo = (
       };
     case PyTorchJobState.RUNNING:
     case TrainJobState.RUNNING:
+    case RayJobState.RUNNING:
       return {
         label: 'Running',
         color: 'blue',
         IconComponent: InProgressIcon,
+      };
+    case RayJobState.NEW:
+      return {
+        label: 'New',
+        color: 'grey',
+        IconComponent: PendingIcon,
+      };
+    case RayJobState.STOPPED:
+      return {
+        label: 'Stopped',
+        color: 'grey',
+        IconComponent: PauseIcon,
       };
     case PyTorchJobState.RESTARTING:
       return {
@@ -76,6 +91,7 @@ export const getStatusInfo = (
       };
     case PyTorchJobState.SUSPENDED:
     case TrainJobState.SUSPENDED:
+    case RayJobState.SUSPENDED:
       return {
         label: 'Suspended',
         color: 'grey',
@@ -445,11 +461,45 @@ export const getTrainJobStatusWithHibernation = async (
   return standardStatus;
 };
 
-// Generic functions that work with both job types
-export type TrainingJob = PyTorchJobKind | TrainJobKind;
+/**
+ * Get RayJob status from conditions
+ */
+export const getBasicRayJobStatus = (job: RayJobKind): RayJobState => {
+  if (!job.status) {
+    return RayJobState.NEW;
+  }
+
+  const jobStatus = job.status.jobStatus;
+  const deploymentStatus = job.status.jobDeploymentStatus;
+
+  // Check deployment status first for suspended state
+  if (deploymentStatus === 'Suspended' || job.spec.suspend === true) {
+    return RayJobState.SUSPENDED;
+  }
+
+  // Map RayJob statuses
+  switch (jobStatus) {
+    case 'SUCCEEDED':
+      return RayJobState.SUCCEEDED;
+    case 'FAILED':
+      return RayJobState.FAILED;
+    case 'RUNNING':
+      return RayJobState.RUNNING;
+    case 'STOPPED':
+      return RayJobState.STOPPED;
+    case 'NEW':
+      return RayJobState.NEW;
+    default:
+      return RayJobState.NEW;
+  }
+};
+
+// Generic functions that work with all job types
+export type TrainingJob = PyTorchJobKind | TrainJobKind | RayJobKind;
 
 export const getJobType = (job: TrainingJob): TrainingJobType => {
   if (job.kind === 'TrainJob') return TrainingJobType.TRAIN;
+  if (job.kind === 'RayJob') return TrainingJobType.RAY;
   return TrainingJobType.PYTORCH;
 };
 
@@ -457,12 +507,18 @@ export const getJobStatus = (job: TrainingJob): TrainingJobState => {
   if (job.kind === 'TrainJob') {
     return getBasicTrainJobStatus(job as TrainJobKind);
   }
+  if (job.kind === 'RayJob') {
+    return getBasicRayJobStatus(job as RayJobKind);
+  }
   return getTrainingJobStatusSync(job as PyTorchJobKind);
 };
 
 export const getJobStatusWithHibernationGeneric = async (job: TrainingJob): Promise<TrainingJobState> => {
   if (job.kind === 'TrainJob') {
     return getTrainJobStatusWithHibernation(job as TrainJobKind);
+  }
+  if (job.kind === 'RayJob') {
+    return getBasicRayJobStatus(job as RayJobKind);
   }
   const result = await getTrainingJobStatus(job as PyTorchJobKind);
   return result.status;

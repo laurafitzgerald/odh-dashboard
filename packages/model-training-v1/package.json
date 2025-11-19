@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "name": "@odh-dashboard/model-training-v1",
+  "description": "Model training v1 plugin with PyTorchJob list view support.",
+  "version": "0.0.0",
+  "scripts": {
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
+  },
+  "exports": {
+    "./extensions": "./extensions.ts",
+    "./src/ModelTrainingRoutes": "./src/ModelTrainingRoutes.tsx"
+  },
+  "dependencies": {
+    "@odh-dashboard/internal": "*",
+    "@odh-dashboard/plugin-core": "*"
+  }
+}

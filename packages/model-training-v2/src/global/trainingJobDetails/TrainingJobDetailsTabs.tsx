@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Tab, Tabs, TabTitleText, TabContentBody } from '@patternfly/react-core';
 import TrainingJobLogsTab from './TrainingJobLogsTab';
-import { PyTorchJobKind } from '../../k8sTypes';
+import { TrainingJob } from '../trainingJobList/utils';
 
 enum TrainingJobDetailsTab {
   LOGS = 'Logs',
@@ -9,7 +9,7 @@ enum TrainingJobDetailsTab {
 }
 
 type TrainingJobDetailsTabsProps = {
-  job: PyTorchJobKind;
+  job: TrainingJob;
 };
 
 const TrainingJobDetailsTabs: React.FC<TrainingJobDetailsTabsProps> = ({ job }) => {

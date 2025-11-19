@@ -22,9 +22,20 @@ export enum TrainJobState {
   UNKNOWN = 'Unknown',
 }
 
-export type TrainingJobState = PyTorchJobState | TrainJobState;
+export enum RayJobState {
+  NEW = 'New',
+  RUNNING = 'Running',
+  SUCCEEDED = 'Succeeded',
+  FAILED = 'Failed',
+  STOPPED = 'Stopped',
+  SUSPENDED = 'Suspended',
+  UNKNOWN = 'Unknown',
+}
+
+export type TrainingJobState = PyTorchJobState | TrainJobState | RayJobState;
 
 export enum TrainingJobType {
   PYTORCH = 'PyTorchJob',
   TRAIN = 'TrainJob',
+  RAY = 'RayJob',
 }

@@ -1,0 +1,210 @@
+# OAuth Client for test dashboard
+apiVersion: oauth.openshift.io/v1
+kind: OAuthClient
+metadata:
+  name: dashboard-test-oauth-client
+grantMethod: auto
+redirectURIs:
+- https://rhods-dashboard-test-redhat-ods-applications.apps.rosa.ray-kueue-demo.hads.p3.openshiftapps.com
+secret: 99135803399343fbe23439e36f565a115d9d9d99e90eccb9bd752770edf7c50b
+---
+# OAuth client secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dashboard-test-oauth-client
+  namespace: redhat-ods-applications
+type: Opaque
+stringData:
+  secret: 99135803399343fbe23439e36f565a115d9d9d99e90eccb9bd752770edf7c50b
+---
+# OAuth config secret (cookie encryption)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dashboard-test-oauth-config
+  namespace: redhat-ods-applications
+type: Opaque
+stringData:
+  cookie_secret: "jwUK8LBgMWsRAWWk0JgoTe/qa9TRt/9Z"
+---
+# Test Dashboard Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rhods-dashboard-test
+  namespace: redhat-ods-applications
+  labels:
+    app: rhods-dashboard-test
+    app.kubernetes.io/part-of: rhods-dashboard-test
+    kueue.x-k8s.io/managed: "false"
+  annotations:
+    kueue.x-k8s.io/queue-name: ""
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rhods-dashboard-test
+      deployment: rhods-dashboard-test
+  template:
+    metadata:
+      labels:
+        app: rhods-dashboard-test
+        deployment: rhods-dashboard-test
+    spec:
+      serviceAccountName: rhods-dashboard
+      containers:
+      # Main dashboard container
+      - name: rhods-dashboard
+        image: quay.io/laurafitzgerald/odh-dashboard:ray-job-cluster-logo
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 15
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        volumeMounts:
+        - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
+          name: odh-trusted-ca-cert
+          subPath: odh-trusted-ca-bundle.crt
+        - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
+          name: odh-trusted-ca-cert
+          subPath: odh-trusted-ca-bundle.crt
+        - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
+          name: odh-ca-cert
+          subPath: odh-ca-bundle.crt
+        - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
+          name: odh-ca-cert
+          subPath: odh-ca-bundle.crt
+      
+      # OAuth proxy sidecar
+      - name: oauth-proxy
+        image: registry.redhat.io/openshift4/ose-oauth-proxy@sha256:4f8d66597feeb32bb18699326029f9a71a5aca4a57679d636b876377c2e95695
+        imagePullPolicy: IfNotPresent
+        args:
+        - --https-address=:8443
+        - --provider=openshift
+        - --upstream=http://localhost:8080
+        - --tls-cert=/etc/tls/private/tls.crt
+        - --tls-key=/etc/tls/private/tls.key
+        - --client-id=dashboard-test-oauth-client
+        - --client-secret-file=/etc/oauth/client/secret
+        - --scope=user:full
+        - --cookie-secret-file=/etc/oauth/config/cookie_secret
+        - --cookie-expire=23h0m0s
+        - --pass-access-token
+        - '--openshift-delegate-urls={"/": {"resource": "projects", "verb": "list"}}'
+        - --skip-auth-regex=^/metrics
+        ports:
+        - containerPort: 8443
+          name: dashboard-ui
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /oauth/healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 1
+        readinessProbe:
+          httpGet:
+            path: /oauth/healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        volumeMounts:
+        - mountPath: /etc/tls/private
+          name: proxy-tls
+        - mountPath: /etc/oauth/config
+          name: oauth-config-test
+        - mountPath: /etc/oauth/client
+          name: oauth-client-test
+      
+      volumes:
+      - name: proxy-tls
+        secret:
+          secretName: dashboard-proxy-tls
+      - name: oauth-config-test
+        secret:
+          secretName: dashboard-test-oauth-config
+      - name: oauth-client-test
+        secret:
+          secretName: dashboard-test-oauth-client
+      - name: odh-trusted-ca-cert
+        configMap:
+          name: odh-trusted-ca-bundle
+          optional: true
+          items:
+          - key: ca-bundle.crt
+            path: odh-trusted-ca-bundle.crt
+      - name: odh-ca-cert
+        configMap:
+          name: odh-trusted-ca-bundle
+          optional: true
+          items:
+          - key: odh-ca-bundle.crt
+            path: odh-ca-bundle.crt
+---
+# Service for test dashboard
+apiVersion: v1
+kind: Service
+metadata:
+  name: rhods-dashboard-test
+  namespace: redhat-ods-applications
+  labels:
+    app: rhods-dashboard-test
+spec:
+  selector:
+    app: rhods-dashboard-test
+  ports:
+  - name: dashboard-ui
+    port: 8443
+    targetPort: 8443
+    protocol: TCP
+---
+# Route for test dashboard
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rhods-dashboard-test
+  namespace: redhat-ods-applications
+  labels:
+    app: rhods-dashboard-test
+spec:
+  to:
+    kind: Service
+    name: rhods-dashboard-test
+  port:
+    targetPort: dashboard-ui
+  tls:
+    termination: passthrough
+    insecureEdgeTerminationPolicy: Redirect

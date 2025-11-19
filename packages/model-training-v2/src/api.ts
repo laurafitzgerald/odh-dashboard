@@ -30,8 +30,8 @@ import * as React from 'react';
 import { groupVersionKind } from '@odh-dashboard/internal/api/k8sUtils';
 import { CustomWatchK8sResult } from '@odh-dashboard/internal/types';
 import useK8sWatchResourceList from '@odh-dashboard/internal/utilities/useK8sWatchResourceList';
-import { PyTorchJobModel, TrainJobModel } from '@odh-dashboard/internal/api/models/kubeflow';
-import { PyTorchJobKind, TrainJobKind } from './k8sTypes';
+import { PyTorchJobModel, TrainJobModel, RayJobModel } from '@odh-dashboard/internal/api/models/kubeflow';
+import { PyTorchJobKind, TrainJobKind, RayJobKind } from './k8sTypes';
 
 // JobSet model for TrainJob hierarchy
 const JobSetModel = {
@@ -126,6 +126,16 @@ export const useTrainJobs = (namespace: string): CustomWatchK8sResult<TrainJobKi
     TrainJobModel,
   );
 
+export const useRayJobs = (namespace: string): CustomWatchK8sResult<RayJobKind[]> =>
+  useK8sWatchResourceList(
+    {
+      isList: true,
+      groupVersionKind: groupVersionKind(RayJobModel),
+      namespace,
+    },
+    RayJobModel,
+  );
+
 export const deletePyTorchJob = (
   name: string,
   namespace: string,
@@ -150,6 +160,21 @@ export const deleteTrainJob = (
     applyK8sAPIOptions(
       {
         model: TrainJobModel,
+        queryOptions: { name, ns: namespace },
+      },
+      opts,
+    ),
+  );
+
+export const deleteRayJob = (
+  name: string,
+  namespace: string,
+  opts?: K8sAPIOptions,
+): Promise<K8sStatus> =>
+  k8sDeleteResource<RayJobKind, K8sStatus>(
+    applyK8sAPIOptions(
+      {
+        model: RayJobModel,
         queryOptions: { name, ns: namespace },
       },
       opts,
@@ -210,6 +235,33 @@ export const getWorkloadForTrainJob = async (
     return null;
   } catch (error) {
     console.warn('Failed to fetch workload for TrainJob:', error);
+    return null;
+  }
+};
+
+export const getWorkloadForRayJob = async (
+  job: RayJobKind,
+): Promise<WorkloadKind | null> => {
+  try {
+    const workloadsByUID = await listWorkloads(
+      job.metadata.namespace,
+      `kueue.x-k8s.io/job-uid=${job.metadata.uid}`,
+    );
+    if (workloadsByUID.length > 0) {
+      return workloadsByUID[0];
+    }
+
+    const workloadsByName = await listWorkloads(
+      job.metadata.namespace,
+      `kueue.x-k8s.io/job-name=${job.metadata.name}`,
+    );
+    if (workloadsByName.length > 0) {
+      return workloadsByName[0];
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('Failed to fetch workload for RayJob:', error);
     return null;
   }
 };
@@ -421,9 +473,6 @@ export const getPodContainerLogText = (
     path: logPath,
   });
   
-  console.log('Fetching logs from URL:', url);
-  console.log('Tail parameter:', tail);
-  
   // Try direct fetch first for large logs
   if (!tail || tail === 0) {
     return fetch(url, {
@@ -444,14 +493,9 @@ export const getPodContainerLogText = (
       return response.text();
     })
     .then((result) => {
-      console.log('Direct fetch - Log response length:', result.length);
-      console.log('Direct fetch - Log lines count:', result.split('\n').length);
-      console.log('Direct fetch - First 200 chars:', result.substring(0, 200));
-      console.log('Direct fetch - Last 200 chars:', result.substring(result.length - 200));
       return result;
     })
     .catch((error) => {
-      console.log('Direct fetch failed, falling back to commonFetchText:', error);
       // Fallback to original method
       return commonFetchText(url, undefined, undefined, true);
     });
@@ -460,10 +504,6 @@ export const getPodContainerLogText = (
   // Use commonFetchText for tailed logs
   return commonFetchText(url, undefined, undefined, true)
     .then((result) => {
-      console.log('CommonFetchText - Log response length:', result.length);
-      console.log('CommonFetchText - Log lines count:', result.split('\n').length);
-      console.log('CommonFetchText - First 200 chars:', result.substring(0, 200));
-      console.log('CommonFetchText - Last 200 chars:', result.substring(result.length - 200));
       return result;
     })
     .catch((error) => {
@@ -515,9 +555,7 @@ export const resumeTrainJob = async (
   error?: string;
 }> => {
   try {
-    console.log('🚀 resumeTrainJob called for:', job.metadata.name);
     const workload = await getWorkloadForTrainJob(job);
-    console.log('🔍 Found workload:', workload?.metadata?.name || 'none');
 
     if (workload) {
       // Path 1: Kueue-enabled job - update workload first (Kueue should auto-sync TrainJob)
@@ -542,7 +580,6 @@ export const resumeTrainJob = async (
       // If TrainJob is still suspended, manually unsuspend it (fallback for webhook issues)
       let updatedJob = refreshedJob;
       if (refreshedJob.spec.suspend === true) {
-        console.warn('Kueue auto-sync failed, manually unsuspending TrainJob');
         updatedJob = await patchTrainJobSuspension(refreshedJob, false, opts);
       }
 
@@ -604,7 +641,6 @@ export const pauseTrainJob = async (
       // If TrainJob is still not suspended, manually suspend it (fallback for webhook issues)
       let updatedJob = refreshedJob;
       if (refreshedJob.spec.suspend !== true) {
-        console.warn('Kueue auto-sync failed, manually suspending TrainJob');
         updatedJob = await patchTrainJobSuspension(refreshedJob, true, opts);
       }
 
@@ -641,14 +677,11 @@ export const toggleTrainJobHibernation = async (
   error?: string;
 }> => {
   try {
-    console.log('🔄 toggleTrainJobHibernation called for:', job.metadata.name);
     const workload = await getWorkloadForTrainJob(job);
-    console.log('🔍 Found workload:', workload?.metadata?.name || 'none');
 
     if (workload) {
       // Path 1: Kueue-enabled job - determine current state and toggle
       const isCurrentlySuspended = job.spec.suspend === true;
-      console.log('📊 Current suspended state:', isCurrentlySuspended);
       
       if (isCurrentlySuspended) {
         // Resume the job

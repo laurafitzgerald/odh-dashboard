@@ -1127,6 +1127,38 @@ export type WorkloadPriorityClassKind = K8sResourceCommon & {
   description?: string;
 };
 
+export type RayClusterKind = K8sResourceCommon & {
+  metadata: {
+    annotations?: Partial<{
+      'opendatahub.io/display-name': string;
+    }>;
+    name: string;
+    namespace: string;
+    labels?: {
+      'kueue.x-k8s.io/queue-name'?: string;
+      [key: string]: string | undefined;
+    };
+  };
+  spec: {
+    headGroupSpec?: Record<string, unknown>;
+    workerGroupSpecs?: Array<{
+      replicas?: number;
+      groupName?: string;
+      [key: string]: unknown;
+    }>;
+  };
+  status?: {
+    state?: 'ready' | 'suspended' | 'failed' | 'unhealthy';
+    desiredWorkerReplicas?: number;
+    availableWorkerReplicas?: number;
+    head?: {
+      serviceIP?: string;
+    };
+    lastUpdateTime?: string;
+    reason?: string;
+  };
+};
+
 export type AccessReviewResourceAttributes = {
   /** CRD group, '*' for all groups, omit for core resources */
   group?: '*' | string;

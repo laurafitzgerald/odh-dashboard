@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rhods-dashboard-test
+  namespace: redhat-ods-applications
+  labels:
+    app: rhods-dashboard-test
+    kueue.x-k8s.io/managed: "false"
+  annotations:
+    kueue.x-k8s.io/queue-name: ""
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rhods-dashboard-test
+  template:
+    metadata:
+      labels:
+        app: rhods-dashboard-test
+    spec:
+      serviceAccountName: rhods-dashboard
+      containers:
+      - name: rhods-dashboard
+        image: quay.io/laurafitzgerald/odh-dashboard:test-kueue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 15
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        volumeMounts:
+        - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
+          name: odh-trusted-ca-cert
+          subPath: odh-trusted-ca-bundle.crt
+        - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
+          name: odh-trusted-ca-cert
+          subPath: odh-trusted-ca-bundle.crt
+        - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
+          name: odh-ca-cert
+          subPath: odh-ca-bundle.crt
+        - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
+          name: odh-ca-cert
+          subPath: odh-ca-bundle.crt
+      volumes:
+      - name: odh-trusted-ca-cert
+        configMap:
+          name: odh-trusted-ca-bundle
+          optional: true
+          items:
+          - key: ca-bundle.crt
+            path: odh-trusted-ca-bundle.crt
+      - name: odh-ca-cert
+        configMap:
+          name: odh-trusted-ca-bundle
+          optional: true
+          items:
+          - key: odh-ca-bundle.crt
+            path: odh-ca-bundle.crt
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rhods-dashboard-test
+  namespace: redhat-ods-applications
+  labels:
+    app: rhods-dashboard-test
+spec:
+  selector:
+    app: rhods-dashboard-test
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rhods-dashboard-test
+  namespace: redhat-ods-applications
+  labels:
+    app: rhods-dashboard-test
+spec:
+  to:
+    kind: Service
+    name: rhods-dashboard-test
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
