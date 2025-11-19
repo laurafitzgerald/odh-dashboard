@@ -34,6 +34,16 @@ const extensions: NavExtension[] = [
       iconRef: () => import('#~/images/icons/ProjectsNavIcon'),
     },
   },
+  {
+    type: 'app.navigation/href',
+    properties: {
+      id: 'jobs',
+      title: 'Jobs',
+      href: '/jobs',
+      path: '/jobs/*',
+      group: '2_projects',
+    },
+  },
 
   {
     type: 'app.navigation/section',

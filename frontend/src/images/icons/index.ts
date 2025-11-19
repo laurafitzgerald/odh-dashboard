@@ -27,6 +27,7 @@ export { default as CheckmarkIcon } from './CheckmarkIcon';
 export { default as PipelineIcon } from './PipelineIcon';
 export { default as PipelineRunIcon } from './PipelineRunIcon';
 export { default as ProjectIcon } from './ProjectIcon';
+export { default as RayIcon } from './RayIcon';
 export { default as RegisteredModelIcon } from './RegisteredModelIcon';
 export { default as ResourcesIcon } from './ResourcesIcon';
 export { default as RhUiTagIcon } from './RhUiTagIcon';

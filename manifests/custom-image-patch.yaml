@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rhods-dashboard
+  namespace: redhat-ods-applications
+spec:
+  template:
+    spec:
+      containers:
+      - name: rhods-dashboard
+        image: quay.io/laurafitzgerald/odh-dashboard:kueue-rayjobs-v2
+

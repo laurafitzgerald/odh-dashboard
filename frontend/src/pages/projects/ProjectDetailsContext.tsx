@@ -5,6 +5,7 @@ import {
   InferenceServiceKind,
   PersistentVolumeClaimKind,
   ProjectKind,
+  RayClusterKind,
   RoleBindingKind,
   SecretKind,
   ServingRuntimeKind,
@@ -32,6 +33,7 @@ import { getTokenNames } from '#~/pages/modelServing/utils';
 import { SupportedArea, useIsAreaAvailable } from '#~/concepts/areas';
 import { Connection } from '#~/concepts/connectionTypes/types';
 import { useGroups, useTemplates } from '#~/api';
+import { useRayClusters } from '#~/api/k8s/rayClusters';
 import { NotebookState } from './notebook/types';
 import useProjectNotebookStates from './notebook/useProjectNotebookStates';
 import useProjectPvcs from './screens/detail/storage/useProjectPvcs';
@@ -44,6 +46,7 @@ export type ProjectDetailsContextType = {
   notebooks: FetchStateObject<NotebookState[]>;
   pvcs: FetchStateObject<PersistentVolumeClaimKind[]>;
   connections: FetchStateObject<Connection[]>;
+  rayClusters: CustomWatchK8sResult<RayClusterKind[]>;
   servingRuntimes: FetchStateObject<ListWithNonDashboardPresence<ServingRuntimeKind>>;
   servingRuntimeTemplates: CustomWatchK8sResult<TemplateKind[]>;
   servingRuntimeTemplateOrder: FetchStateObject<string[]>;
@@ -60,6 +63,7 @@ export const ProjectDetailsContext = React.createContext<ProjectDetailsContextTy
   notebooks: DEFAULT_LIST_FETCH_STATE,
   pvcs: DEFAULT_LIST_FETCH_STATE,
   connections: DEFAULT_LIST_FETCH_STATE,
+  rayClusters: DEFAULT_LIST_WATCH_RESULT,
   servingRuntimes: DEFAULT_LIST_WITH_NON_DASHBOARD_PRESENCE_FETCH_STATE,
   servingRuntimeTemplates: DEFAULT_LIST_WATCH_RESULT,
   servingRuntimeTemplateOrder: DEFAULT_LIST_FETCH_STATE,
@@ -80,6 +84,7 @@ const ProjectDetailsContextProvider: React.FC = () => {
 
   const pvcs = useProjectPvcs(namespace, { refreshRate: POLL_INTERVAL });
   const connections = useConnections(namespace, { refreshRate: POLL_INTERVAL });
+  const rayClusters = useRayClusters(namespace);
   const servingRuntimes = useServingRuntimes(namespace, undefined, { refreshRate: POLL_INTERVAL });
   const servingRuntimeTemplates = useTemplates(dashboardNamespace);
   const servingRuntimeTemplateOrder = useTemplateOrder(dashboardNamespace);
@@ -122,6 +127,7 @@ const ProjectDetailsContextProvider: React.FC = () => {
             notebooks,
             pvcs,
             connections,
+            rayClusters,
             servingRuntimes,
             servingRuntimeTemplates,
             servingRuntimeTemplateOrder,
@@ -138,6 +144,7 @@ const ProjectDetailsContextProvider: React.FC = () => {
       notebooks,
       pvcs,
       connections,
+      rayClusters,
       servingRuntimes,
       servingRuntimeTemplates,
       servingRuntimeTemplateOrder,

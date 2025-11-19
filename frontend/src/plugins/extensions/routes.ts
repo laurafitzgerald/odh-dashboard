@@ -96,6 +96,13 @@ const extensions: RouteExtension[] = [
   {
     type: 'app.route',
     properties: {
+      path: '/jobs/*',
+      component: () => import('@odh-dashboard/model-training-v1/src/ModelTrainingRoutes'),
+    },
+  },
+  {
+    type: 'app.route',
+    properties: {
       path: '/notebook-controller/*',
       component: () => import('#~/pages/notebookController/NotebookController'),
     },

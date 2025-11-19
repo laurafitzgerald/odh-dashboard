@@ -1,0 +1,104 @@
+# Multi-architecture Dockerfile for ODH Dashboard
+# Supports amd64, arm64, ppc64le, s390x architectures
+
+# Build arguments
+ARG SOURCE_CODE=.
+ARG BASE_IMAGE="registry.access.redhat.com/ubi9/nodejs-20:latest"
+
+# Builder stage - uses BUILDPLATFORM to build on native architecture for speed
+FROM --platform=$BUILDPLATFORM ${BASE_IMAGE} as builder
+
+## Build args to be used at this stage
+ARG SOURCE_CODE
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+# Set environment for reproducible builds
+ENV TURBO_TELEMETRY_DISABLED=1
+ENV CI=true
+ENV NODE_ENV=production
+
+WORKDIR /usr/src/app
+
+# Change to build user early
+USER default
+
+# Copy all source code first (needed for workspace dependencies)
+COPY --chown=default:root ${SOURCE_CODE} /usr/src/app
+
+# Clean npm cache and install dependencies
+RUN npm cache clean --force && \
+    npm ci --omit=optional --ignore-scripts && \
+    npm run postinstall
+
+# Set branding for RHOAI/ODH - customize as needed
+ENV ODH_LOGO=../images/rhoai-logo.svg
+ENV ODH_LOGO_DARK=../images/rhoai-logo-dark-theme.svg
+ENV ODH_PRODUCT_NAME="Red Hat OpenShift AI"
+ENV ODH_FAVICON="rhoai-favicon.svg"
+ENV DOC_LINK="https://docs.redhat.com/en/documentation/red_hat_openshift_ai/"
+ENV SUPPORT_LINK="https://access.redhat.com/support/cases/#/case/new/open-case?caseCreate=true"
+ENV COMMUNITY_LINK=""
+
+# Build the application
+RUN npm run build
+
+# Prune development dependencies to reduce image size
+RUN npm prune --omit=dev && \
+    # Remove unnecessary files
+    find . -name "*.md" -type f -delete && \
+    find . -name "*.map" -type f -delete && \
+    rm -rf .git .gitignore .github .husky .vscode
+
+# Runtime stage - uses target platform
+FROM ${BASE_IMAGE} as runtime
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+# Add labels for better tracking
+LABEL io.opendatahub.component="odh-dashboard" \
+      io.k8s.display-name="odh-dashboard" \
+      name="open-data-hub/odh-dashboard-ubi9" \
+      summary="ODH Dashboard with Kueue Admin Support" \
+      description="Open Data Hub Dashboard with multi-architecture support" \
+      io.openshift.tags="opendatahub,dashboard,ai,ml" \
+      io.openshift.expose-services="8443:https" \
+      maintainer="ODH Dashboard Team"
+
+WORKDIR /usr/src/app
+
+# Create logs directory with proper permissions
+RUN mkdir -p /usr/src/app/logs && \
+    chmod 775 /usr/src/app/logs && \
+    chown -R 1001:0 /usr/src/app/logs
+
+# Switch to non-root user
+USER 1001:0
+
+# Copy built artifacts from builder
+COPY --chown=1001:0 --from=builder /usr/src/app/frontend/public /usr/src/app/frontend/public
+COPY --chown=1001:0 --from=builder /usr/src/app/backend/package.json /usr/src/app/backend/package.json
+COPY --chown=1001:0 --from=builder /usr/src/app/backend/node_modules /usr/src/app/backend/node_modules
+COPY --chown=1001:0 --from=builder /usr/src/app/backend/dist /usr/src/app/backend/dist
+COPY --chown=1001:0 --from=builder /usr/src/app/package.json /usr/src/app/package.json
+COPY --chown=1001:0 --from=builder /usr/src/app/package-lock.json /usr/src/app/package-lock.json
+COPY --chown=1001:0 --from=builder /usr/src/app/node_modules /usr/src/app/node_modules
+COPY --chown=1001:0 --from=builder /usr/src/app/data /usr/src/app/data
+
+# Note: .npmrc and .env files are not needed in runtime image
+# They were only needed during build phase
+
+# Set working directory to backend
+WORKDIR /usr/src/app/backend
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:8080/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Expose port
+EXPOSE 8080
+
+# Run the application
+CMD ["npm", "run", "start"]
+

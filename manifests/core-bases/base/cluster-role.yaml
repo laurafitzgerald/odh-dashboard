@@ -168,6 +168,15 @@ rules:
     resources:
       - notebooks
   - apiGroups:
+      - ray.io
+    verbs:
+      - get
+      - list
+      - watch
+      - delete
+    resources:
+      - rayclusters
+  - apiGroups:
       - datasciencecluster.opendatahub.io
     verbs:
       - list

@@ -6,3 +6,31 @@ export const NotebookModel: K8sModelCommon = {
   kind: 'Notebook',
   plural: 'notebooks',
 };
+
+export const PyTorchJobModel: K8sModelCommon = {
+  apiVersion: 'v1',
+  apiGroup: 'kubeflow.org',
+  kind: 'PyTorchJob',
+  plural: 'pytorchjobs',
+};
+
+export const TrainJobModel: K8sModelCommon = {
+  apiVersion: 'v1alpha1',
+  apiGroup: 'trainer.kubeflow.org',
+  kind: 'TrainJob',
+  plural: 'trainjobs',
+};
+
+export const RayJobModel: K8sModelCommon = {
+  apiVersion: 'v1',
+  apiGroup: 'ray.io',
+  kind: 'RayJob',
+  plural: 'rayjobs',
+};
+
+export const RayClusterModel: K8sModelCommon = {
+  apiVersion: 'v1',
+  apiGroup: 'ray.io',
+  kind: 'RayCluster',
+  plural: 'rayclusters',
+};

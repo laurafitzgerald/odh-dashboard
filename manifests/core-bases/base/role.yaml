@@ -92,6 +92,15 @@ rules:
       - delete
     resources:
       - notebooks
+  - apiGroups:
+      - ray.io
+    verbs:
+      - get
+      - list
+      - watch
+      - delete
+    resources:
+      - rayclusters
   - verbs:
       - get
       - list

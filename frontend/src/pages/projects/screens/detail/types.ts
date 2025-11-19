@@ -3,6 +3,7 @@ export enum ProjectSectionID {
   WORKBENCHES = 'workbenches',
   CLUSTER_STORAGES = 'cluster-storages',
   CONNECTIONS = 'connections',
+  RAY_CLUSTERS = 'ray-clusters',
   MODEL_SERVER = 'model-server',
   PIPELINES = 'pipelines-projects',
   PERMISSIONS = 'permissions',
